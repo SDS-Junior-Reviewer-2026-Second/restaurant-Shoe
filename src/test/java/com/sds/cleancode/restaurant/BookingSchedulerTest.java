@@ -28,12 +28,9 @@ public class BookingSchedulerTest {
     private static final int CAPACITY_PER_HOUR = 3;
 
 
-
-
     private BookingScheduler bookingScheduler;
     private TestableSmsSender testableSmsSender;
     private TestableMailSender testableMailSender;
-
 
 
     @BeforeEach
