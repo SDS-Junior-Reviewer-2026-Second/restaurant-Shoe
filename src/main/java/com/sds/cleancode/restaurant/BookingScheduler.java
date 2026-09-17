@@ -18,6 +18,11 @@ public class BookingScheduler {
         this.mailSender = new MailSender();
     }
 
+    public LocalDateTime getNow() {
+        return LocalDateTime.now();
+    }
+
+
     public void addSchedule(Schedule schedule) {
 
         // 정각에 예약하지 않을 경우 RuntimeException 발생
@@ -35,15 +40,13 @@ public class BookingScheduler {
         if (numberOfPeople > capacityPerHour) {
             throw new RuntimeException("Number of people is over restaurant capacity per hour");
         }
-			
 
-		/*
+
 		// 일요일에는 시스템을 오픈하지 않는다.
-		LocalDateTime now = LocalDateTime.now();
+		LocalDateTime now = getNow();
 		if(now.getDayOfWeek() == DayOfWeek.SUNDAY){
 			throw new RuntimeException("Booking system is not available on sunday");
 		}
-		*/
 
         schedules.add(schedule);
 
