@@ -6,10 +6,17 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Spy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 public class BookingSchedulerTest {
 
     private static final DateTimeFormatter FORMAT =
@@ -21,31 +28,29 @@ public class BookingSchedulerTest {
     private static final LocalDateTime NOT_ON_THE_HOUR =
             LocalDateTime.parse("2021/03/26 09:05", FORMAT);
 
-    private static final Customer CUSTOMER =
-            new Customer("Fake name", "010-1234-5678");
-
     private static final int UNDER_CAPACITY = 1;
     private static final int CAPACITY_PER_HOUR = 3;
 
+    @Mock
+    private Customer CUSTOMER;
 
-    private BookingScheduler bookingScheduler;
-    private TestableSmsSender testableSmsSender;
-    private TestableMailSender testableMailSender;
+    @Mock(answer = Answers.RETURNS_MOCKS)
+    private Customer CUSTOMER_WITH_MAIL;
 
+    @Mock
+    private SmsSender smsSender;
+
+    @Mock
+    private MailSender mailSender;
+
+    @Spy
+    private BookingScheduler bookingScheduler =
+            new BookingScheduler(CAPACITY_PER_HOUR);
 
     @BeforeEach
     public void setUp() {
-        bookingScheduler =
-                new BookingScheduler(CAPACITY_PER_HOUR);
-
-        testableSmsSender =
-                new TestableSmsSender();
-
-        testableMailSender =
-                new TestableMailSender();
-
-        bookingScheduler.setMailSender(testableMailSender);
-        bookingScheduler.setSmsSender(testableSmsSender);
+        bookingScheduler.setMailSender(mailSender);
+        bookingScheduler.setSmsSender(smsSender);
     }
 
     @Test
@@ -119,7 +124,7 @@ public class BookingSchedulerTest {
 
         bookingScheduler.addSchedule(schedule);
 
-        assertTrue(testableSmsSender.isSendMethodIsCalled());
+        verify(smsSender, times(1)).send(schedule);
     }
 
     @Test
@@ -130,48 +135,38 @@ public class BookingSchedulerTest {
 
         bookingScheduler.addSchedule(schedule);
 
-        assertEquals(
-                0,
-                testableMailSender.getCountSendMailMethodIsCalled()
-        );
+        verify(mailSender, times(0)).sendMail(schedule);
     }
 
     @Test
     public void 이메일이_있는_경우에는_이메일_발송() {
 
-        Customer customerWithMail =
-                new Customer(
-                        "Fake Name",
-                        "010-1234-5678",
-                        "test@test.com"
-                );
-
         Schedule schedule =
                 new Schedule(
                         ON_THE_HOUR,
                         UNDER_CAPACITY,
-                        customerWithMail
+                        CUSTOMER_WITH_MAIL
                 );
 
         bookingScheduler.addSchedule(schedule);
 
-        assertEquals(
-                1,
-                testableMailSender.getCountSendMailMethodIsCalled()
-        );
+        verify(mailSender, times(1)).sendMail(schedule);
     }
 
     @Test
     public void 현재날짜가_일요일인_경우_예약불가_예외처리() {
 
-        bookingScheduler =
-                new TestableBookingScheduler(
-                        CAPACITY_PER_HOUR,
-                        "2021/03/28 17:00"
-                );
+        LocalDateTime sunday =
+                LocalDateTime.parse("2021/03/28 17:00", FORMAT);
+
+        when(bookingScheduler.getNow()).thenReturn(sunday);
 
         Schedule newSchedule =
-                new Schedule(ON_THE_HOUR, UNDER_CAPACITY, CUSTOMER);
+                new Schedule(
+                        ON_THE_HOUR,
+                        UNDER_CAPACITY,
+                        CUSTOMER_WITH_MAIL
+                );
 
         RuntimeException exception =
                 assertThrows(RuntimeException.class, () -> {
@@ -187,14 +182,17 @@ public class BookingSchedulerTest {
     @Test
     public void 현재날짜가_일요일이_아닌경우_예약가능() {
 
-        bookingScheduler =
-                new TestableBookingScheduler(
-                        CAPACITY_PER_HOUR,
-                        "2021/03/29 17:00"
-                );
+        LocalDateTime monday =
+                LocalDateTime.parse("2024/06/03 17:00", FORMAT);
+
+        when(bookingScheduler.getNow()).thenReturn(monday);
 
         Schedule newSchedule =
-                new Schedule(ON_THE_HOUR, UNDER_CAPACITY, CUSTOMER);
+                new Schedule(
+                        ON_THE_HOUR,
+                        UNDER_CAPACITY,
+                        CUSTOMER_WITH_MAIL
+                );
 
         bookingScheduler.addSchedule(newSchedule);
 
